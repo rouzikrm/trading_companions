@@ -1,0 +1,107 @@
+//@version=5
+indicator("Scalping Signals(5min)","SS",true)
+
+slowfilt              = input.bool (true  , "Use Slow MA Filtering")
+fastfilt              = input.bool (true  , "Use Fast MA Filtering")
+slopefilt             = input.bool (false ,"Filter Signals Based On Slope of MA's", tooltip = "select any of the above to use this")
+bb                    = input(false,"show bb")
+
+src                   = input(close, "Source", tooltip = "This affects signals")
+
+fastmatype            = input.string ("sma", "Fast MA Type", options=["sma", "ema", "rma", "wma", "vwma"], group = "fast ma inputs")
+fastmalength          = input (10, "Fast MA Length", group = "fast ma inputs")
+fastma                = ta.sma(close, fastmalength)
+
+slowmatype            = input.string ("sma", "Slow MA Type", options=["sma", "ema", "rma", "wma", "vwma"], group = "SLow ma inputs")
+slowmalength          = input (200, "Slow MA Length", group = "SLow ma inputs")
+slowma                = ta.sma(close, slowmalength)
+
+rsi1Length            = input (28, "Slow RSI Length", group = "rsi inputs")
+rsi2Length            = input (7 , "Fast RSI Length", group = "rsi inputs")
+rsi                   = ta.rsi(src,rsi2Length)
+rsi2                  = ta.rsi(src,rsi1Length)
+X                     = ta.crossover(rsi,rsi2)
+Y                     = ta.crossunder(rsi,rsi2)
+ 
+
+if slowmatype         == "sma"
+    slowma:= ta.sma(close, slowmalength)
+else if slowmatype    == "ema"
+    slowma := ta.ema(close, slowmalength)
+else if slowmatype    == "rma"
+    slowma := ta.rma(close, slowmalength)
+else if slowmatype    == "wma"
+    slowma := ta.wma(close, slowmalength)
+else if slowmatype    == "vwma"
+    slowma := ta.vwma(close, slowmalength)
+
+if fastmatype         == "sma"
+    fastma := ta.sma(close, fastmalength)
+else if fastmatype    == "ema"
+    fastma := ta.ema(close, fastmalength)
+else if fastmatype    == "rma"
+    fastma := ta.rma(close, fastmalength)
+else if fastmatype    == "wma"
+    fastma := ta.wma(close, fastmalength)
+else if fastmatype    == "vwma"
+    fastma := ta.vwma(close, fastmalength)
+
+
+d=180/math.pi
+slope                 = d*math.atan((fastma-fastma[1])/ta.atr(14))
+slope2                = d*math.atan((slowma-slowma[1])/ta.atr(14))
+
+Fmagreen              = slope>0
+Fmared                = slope<0
+Smagreen              = slope2>0
+Smared                = slope<0
+
+[middle,upper,lower]  =ta.bb(close,20,2)
+
+B = if slopefilt
+
+    if fastfilt and slowfilt
+        Fmagreen and Smagreen and close > fastma and close > slowma and X
+    else if fastfilt
+        Fmagreen and close > fastma and X
+    else if slowfilt
+        Smagreen and close > slowma and X
+    else
+        X
+else
+    if fastfilt and slowfilt
+        close > fastma and close > slowma and X
+    else if fastfilt
+        close > fastma and X
+    else if slowfilt      
+        close > slowma and X
+    else
+        X
+
+S = if slopefilt
+    
+    if fastfilt and slowfilt
+        Fmared and Smared and close < fastma and close < slowma and Y
+    else if fastfilt
+        Fmared and close < fastma and Y
+    else if slowfilt
+        Smared and close < slowma and Y
+    else
+        Y
+else
+    if fastfilt and slowfilt
+        close < fastma and close < slowma and Y
+    else if fastfilt
+        close < fastma and Y
+    else if slowfilt
+        close < slowma and Y
+    else
+        Y
+
+plotshape(B,"Buy",shape.labelup,location.belowbar,color.green,size=size.small)  
+plotshape(S,"Sell",shape.labeldown,location.abovebar,color.red,size=size.small)     
+plot(fastma,"Fast MA",color = slope>0?color.green:color.red)
+plot(slowma,"slow MA",color=slope2>0?color.green:color.red)
+plot(upper,color=bb? color.blue:na,title="upper")
+plot(middle,color=bb? color.yellow:na,title="middle")
+plot(lower,color=bb? color.blue:na,title="lower")
